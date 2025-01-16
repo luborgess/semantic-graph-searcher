@@ -23,13 +23,25 @@ interface GraphData {
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
 
+// Purple color palette for nodes
+const nodeColors = {
+  light: "#8b5cf6", // Purple-500
+  dark: "#a78bfa",  // Purple-400 (brighter for dark mode)
+};
+
 const Index = () => {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [graphData, setGraphData] = useState<GraphData>({
     nodes: [
-      { id: "example", name: "Search Example", val: 1, color: "#ff6b6b", group: 1 }
+      { 
+        id: "example", 
+        name: "Search Example", 
+        val: 1, 
+        color: nodeColors.light, 
+        group: 1 
+      }
     ],
     links: []
   });
@@ -59,6 +71,11 @@ const Index = () => {
       }
       
       const data = await response.json();
+      // Add colors to nodes
+      data.nodes = data.nodes.map((node: any) => ({
+        ...node,
+        color: document.documentElement.classList.contains('dark') ? nodeColors.dark : nodeColors.light
+      }));
       setGraphData(data);
       
       toast({
@@ -85,11 +102,11 @@ const Index = () => {
   }, [toast]);
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <Card className="max-w-6xl mx-auto p-6 space-y-6">
+    <div className="min-h-screen bg-background p-6 dark:bg-gray-900 transition-colors duration-200">
+      <Card className="max-w-6xl mx-auto p-6 space-y-6 dark:bg-gray-800 dark:border-gray-700">
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold">Semantic Graph Search</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-3xl font-bold dark:text-white">Semantic Graph Search</h1>
+          <p className="text-muted-foreground dark:text-gray-400">
             Search and visualize semantic relationships between terms
           </p>
         </div>
@@ -100,9 +117,13 @@ const Index = () => {
             placeholder="Enter your search query..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="flex-1"
+            className="flex-1 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
           />
-          <Button type="submit" disabled={isLoading}>
+          <Button 
+            type="submit" 
+            disabled={isLoading}
+            className="dark:bg-purple-600 dark:hover:bg-purple-700"
+          >
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -114,14 +135,14 @@ const Index = () => {
           </Button>
         </form>
 
-        <div className="h-[600px] border rounded-lg overflow-hidden bg-black/5">
+        <div className="h-[600px] border rounded-lg overflow-hidden bg-black/5 dark:bg-gray-900/50 dark:border-gray-700">
           <ForceGraph2D
             graphData={graphData}
             nodeLabel="name"
-            nodeColor={(node) => (node as any).color || "#ff6b6b"}
+            nodeColor={(node) => (node as any).color || (document.documentElement.classList.contains('dark') ? nodeColors.dark : nodeColors.light)}
             nodeRelSize={6}
             linkWidth={2}
-            linkColor={() => "#999"}
+            linkColor={() => document.documentElement.classList.contains('dark') ? "#4c4f5a" : "#999"}
             backgroundColor="transparent"
             onNodeClick={handleNodeClick}
             cooldownTicks={100}
@@ -131,7 +152,7 @@ const Index = () => {
           />
         </div>
 
-        <div className="text-sm text-muted-foreground text-center">
+        <div className="text-sm text-muted-foreground dark:text-gray-400 text-center">
           Click on nodes to explore relationships. Drag to rearrange the graph.
         </div>
       </Card>
