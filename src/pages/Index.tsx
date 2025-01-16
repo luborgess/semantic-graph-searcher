@@ -4,7 +4,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { Loader2, Moon, Sun } from "lucide-react";
+import { Toggle } from "@/components/ui/toggle";
 
 interface GraphData {
   nodes: Array<{
@@ -23,28 +24,58 @@ interface GraphData {
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
 
-// Purple color palette for nodes
+// Obsidian-like color palette
 const nodeColors = {
-  light: "#8b5cf6", // Purple-500
-  dark: "#a78bfa",  // Purple-400 (brighter for dark mode)
+  light: {
+    node: "#9b87f5",
+    link: "rgba(155, 135, 245, 0.2)",
+    background: "rgba(255, 255, 255, 0.9)"
+  },
+  dark: {
+    node: "#a78bfa",
+    link: "rgba(167, 139, 250, 0.2)",
+    background: "rgba(22, 22, 22, 0.9)"
+  }
 };
 
 const Index = () => {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => 
+    document.documentElement.classList.contains("dark")
+  );
   const [graphData, setGraphData] = useState<GraphData>({
     nodes: [
       { 
         id: "example", 
         name: "Search Example", 
         val: 1, 
-        color: nodeColors.light, 
+        color: isDarkMode ? nodeColors.dark.node : nodeColors.light.node,
         group: 1 
       }
     ],
     links: []
   });
+
+  const toggleDarkMode = () => {
+    const newDarkMode = !isDarkMode;
+    setIsDarkMode(newDarkMode);
+    if (newDarkMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+    
+    // Update node colors when theme changes
+    setGraphData(prev => ({
+      ...prev,
+      nodes: prev.nodes.map(node => ({
+        ...node,
+        color: newDarkMode ? nodeColors.dark.node : nodeColors.light.node
+      }))
+    }));
+  };
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,7 +105,7 @@ const Index = () => {
       // Add colors to nodes
       data.nodes = data.nodes.map((node: any) => ({
         ...node,
-        color: document.documentElement.classList.contains('dark') ? nodeColors.dark : nodeColors.light
+        color: isDarkMode ? nodeColors.dark.node : nodeColors.light.node
       }));
       setGraphData(data);
       
@@ -102,8 +133,19 @@ const Index = () => {
   }, [toast]);
 
   return (
-    <div className="min-h-screen bg-background p-6 dark:bg-gray-900 transition-colors duration-200">
-      <Card className="max-w-6xl mx-auto p-6 space-y-6 dark:bg-gray-800 dark:border-gray-700">
+    <div className="min-h-screen bg-background p-6 dark:bg-[#1A1F2C] transition-colors duration-200">
+      <div className="absolute top-4 right-4">
+        <Toggle
+          pressed={isDarkMode}
+          onPressedChange={toggleDarkMode}
+          aria-label="Toggle dark mode"
+          className="p-2 hover:bg-accent"
+        >
+          {isDarkMode ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+        </Toggle>
+      </div>
+
+      <Card className="max-w-6xl mx-auto p-6 space-y-6 dark:bg-[#221F26] dark:border-gray-700 bg-opacity-90">
         <div className="text-center space-y-2">
           <h1 className="text-3xl font-bold dark:text-white">Semantic Graph Search</h1>
           <p className="text-muted-foreground dark:text-gray-400">
@@ -117,7 +159,7 @@ const Index = () => {
             placeholder="Enter your search query..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="flex-1 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            className="flex-1 dark:bg-[#2A2A2A] dark:border-gray-600 dark:text-white"
           />
           <Button 
             type="submit" 
@@ -135,20 +177,40 @@ const Index = () => {
           </Button>
         </form>
 
-        <div className="h-[600px] border rounded-lg overflow-hidden bg-black/5 dark:bg-gray-900/50 dark:border-gray-700">
+        <div className="h-[600px] border rounded-lg overflow-hidden bg-black/5 dark:bg-[#1A1F2C]/50 dark:border-gray-700">
           <ForceGraph2D
             graphData={graphData}
             nodeLabel="name"
-            nodeColor={(node) => (node as any).color || (document.documentElement.classList.contains('dark') ? nodeColors.dark : nodeColors.light)}
+            nodeColor={(node) => (node as any).color}
             nodeRelSize={6}
-            linkWidth={2}
-            linkColor={() => document.documentElement.classList.contains('dark') ? "#4c4f5a" : "#999"}
-            backgroundColor="transparent"
+            linkWidth={1.5}
+            linkColor={() => isDarkMode ? nodeColors.dark.link : nodeColors.light.link}
+            backgroundColor={isDarkMode ? nodeColors.dark.background : nodeColors.light.background}
             onNodeClick={handleNodeClick}
             cooldownTicks={100}
             linkDirectionalParticles={2}
             linkDirectionalParticleSpeed={0.005}
             d3VelocityDecay={0.1}
+            nodeCanvasObject={(node, ctx, globalScale) => {
+              const label = (node as any).name;
+              const fontSize = 12/globalScale;
+              ctx.font = `${fontSize}px Sans-Serif`;
+              const textWidth = ctx.measureText(label).width;
+              const bckgDimensions = [textWidth, fontSize].map(n => n + fontSize * 0.2);
+
+              ctx.fillStyle = isDarkMode ? 'rgba(22, 22, 22, 0.8)' : 'rgba(255, 255, 255, 0.8)';
+              ctx.fillRect(
+                (node as any).x - bckgDimensions[0] / 2,
+                (node as any).y - bckgDimensions[1] / 2,
+                bckgDimensions[0],
+                bckgDimensions[1]
+              );
+
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillStyle = isDarkMode ? nodeColors.dark.node : nodeColors.light.node;
+              ctx.fillText(label, (node as any).x, (node as any).y);
+            }}
           />
         </div>
 
