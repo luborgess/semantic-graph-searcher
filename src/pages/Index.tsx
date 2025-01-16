@@ -45,25 +45,14 @@ const Index = () => {
 
     setIsLoading(true);
     try {
-      // TODO: Replace with actual API call to Python backend
-      // Mock data simulating search results and relationships
-      const mockGraphData: GraphData = {
-        nodes: [
-          { id: "1", name: searchQuery, val: 2, color: "#ff6b6b", group: 1 },
-          { id: "2", name: "Related Term 1", val: 1, color: "#4ecdc4", group: 2 },
-          { id: "3", name: "Related Term 2", val: 1, color: "#45b7d1", group: 2 },
-          { id: "4", name: "Keyword 1", val: 1, color: "#96ceb4", group: 3 },
-          { id: "5", name: "Keyword 2", val: 1, color: "#96ceb4", group: 3 },
-        ],
-        links: [
-          { source: "1", target: "2", value: 1 },
-          { source: "1", target: "3", value: 1 },
-          { source: "2", target: "4", value: 1 },
-          { source: "3", target: "5", value: 1 },
-        ]
-      };
+      const response = await fetch(`http://localhost:8000/api/search/${encodeURIComponent(searchQuery)}`);
+      if (!response.ok) {
+        throw new Error('Search failed');
+      }
       
-      setGraphData(mockGraphData);
+      const data = await response.json();
+      setGraphData(data);
+      
       toast({
         title: "Success",
         description: "Search results updated",
