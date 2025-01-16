@@ -21,6 +21,8 @@ interface GraphData {
   }>;
 }
 
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
+
 const Index = () => {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
@@ -45,9 +47,15 @@ const Index = () => {
 
     setIsLoading(true);
     try {
-      const response = await fetch(`http://localhost:8000/api/search/${encodeURIComponent(searchQuery)}`);
+      const response = await fetch(`${BACKEND_URL}/api/search/${encodeURIComponent(searchQuery)}`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+      
       if (!response.ok) {
-        throw new Error('Search failed');
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
       
       const data = await response.json();
@@ -61,7 +69,7 @@ const Index = () => {
       console.error("Search error:", error);
       toast({
         title: "Error",
-        description: "Failed to perform search",
+        description: "Failed to connect to search service. Please ensure the backend server is running.",
         variant: "destructive",
       });
     } finally {
