@@ -5,3 +5,4 @@ requests==2.31.0
 python-dotenv==1.0.0
 neo4j==5.14.1
 nltk==3.8.1
+duckduckgo-search==4.1.1
