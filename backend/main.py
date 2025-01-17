@@ -9,6 +9,7 @@ from nltk.corpus import stopwords
 from neo4j import GraphDatabase
 import os
 from dotenv import load_dotenv
+from duckduckgo_search import DDGS
 
 # Download required NLTK data
 nltk.download('punkt')
@@ -18,13 +19,13 @@ nltk.download('rslp')  # Portuguese stemmer
 
 app = FastAPI()
 
-# Configure CORS
+# Configure CORS - Permitir todas as origens durante desenvolvimento
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # Permite todas as origens
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"],  # Permite todos os métodos
+    allow_headers=["*"],  # Permite todos os headers
 )
 
 # Load environment variables
@@ -67,48 +68,25 @@ class Neo4jConnection:
                 CREATE (a)-[:RELATED {weight: $weight}]->(b)
             """, source=rel["source"], target=rel["target"], weight=rel["weight"])
 
-def scrape_duckduckgo(query: str, max_results: int = 20) -> List[str]:
-    # Add 'português' to the query to prioritize Portuguese results
-    url = f"https://html.duckduckgo.com/html/?q={query}+português&kl=br-pt"
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7'
-    }
-    
+def scrape_duckduckgo(query: str, max_results: int = 20) -> List[Dict[str, str]]:
     try:
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, 'html.parser')
-        
-        results = []
-        for result in soup.select('.result__body')[:max_results]:
-            title = result.select_one('.result__title')
-            snippet = result.select_one('.result__snippet')
-            if title and snippet:
+        with DDGS() as ddgs:
+            results = []
+            for r in ddgs.text(
+                query,
+                region="br-pt",
+                safesearch="moderate",
+                max_results=max_results,
+                timelimit='m'  # último mês
+            ):
                 results.append({
-                    'title': title.get_text(strip=True),
-                    'snippet': snippet.get_text(strip=True)
+                    'title': r['title'],
+                    'snippet': r['body']
                 })
-        
-        return results
+            return results
     except Exception as e:
+        print(f"Erro ao buscar no DuckDuckGo: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Erro ao buscar resultados: {str(e)}")
-
-def extract_keywords(text: str) -> List[str]:
-    # Use Portuguese stopwords
-    stop_words = set(stopwords.words('portuguese'))
-    
-    # Add common Portuguese words to stop words
-    additional_stop_words = {'sobre', 'após', 'ante', 'até', 'com', 'contra', 'desde', 'entre', 'para', 'por', 'sem', 'sob'}
-    stop_words.update(additional_stop_words)
-    
-    # Tokenize and remove stopwords
-    tokens = word_tokenize(text.lower())
-    keywords = [word for word in tokens if word.isalnum() and word not in stop_words]
-    
-    # Get frequency distribution
-    freq_dist = nltk.FreqDist(keywords)
-    return [word for word, freq in freq_dist.most_common(10)]
 
 @app.get("/api/search/{query}")
 async def search(query: str):
