@@ -22,7 +22,8 @@ interface GraphData {
   }>;
 }
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
+// Use environment variable with fallback for development
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "https://your-deployed-backend-url.com";
 
 // Obsidian-like color palette
 const nodeColors = {
@@ -90,6 +91,8 @@ const Index = () => {
 
     setIsLoading(true);
     try {
+      console.log("Fetching from:", `${BACKEND_URL}/api/search/${encodeURIComponent(searchQuery)}`);
+      
       const response = await fetch(`${BACKEND_URL}/api/search/${encodeURIComponent(searchQuery)}`, {
         method: 'GET',
         headers: {
@@ -117,7 +120,7 @@ const Index = () => {
       console.error("Search error:", error);
       toast({
         title: "Error",
-        description: "Failed to connect to search service. Please ensure the backend server is running.",
+        description: "Failed to connect to search service. Please try again later.",
         variant: "destructive",
       });
     } finally {
