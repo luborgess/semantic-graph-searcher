@@ -1,43 +1,13 @@
 import { useState, useCallback } from "react";
-import { ForceGraph2D } from "react-force-graph";
-import { useToast } from "@/components/ui/use-toast";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 import { Card } from "@/components/ui/card";
-import { Loader2, Moon, Sun } from "lucide-react";
+import { Moon, Sun } from "lucide-react";
 import { Toggle } from "@/components/ui/toggle";
-
-interface GraphData {
-  nodes: Array<{
-    id: string;
-    name: string;
-    val: number;
-    color?: string;
-    group?: number;
-  }>;
-  links: Array<{
-    source: string;
-    target: string;
-    value: number;
-  }>;
-}
+import { SearchBar } from "@/components/SearchBar";
+import { GraphVisualization } from "@/components/GraphVisualization";
 
 // Use environment variable with fallback for development
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
-
-// Obsidian-like color palette
-const nodeColors = {
-  light: {
-    node: "#9b87f5",
-    link: "rgba(155, 135, 245, 0.2)",
-    background: "rgba(255, 255, 255, 0.9)"
-  },
-  dark: {
-    node: "#a78bfa",
-    link: "rgba(167, 139, 250, 0.2)",
-    background: "rgba(22, 22, 22, 0.9)"
-  }
-};
 
 const Index = () => {
   const { toast } = useToast();
@@ -46,13 +16,13 @@ const Index = () => {
   const [isDarkMode, setIsDarkMode] = useState(() => 
     document.documentElement.classList.contains("dark")
   );
-  const [graphData, setGraphData] = useState<GraphData>({
+  const [graphData, setGraphData] = useState({
     nodes: [
       { 
         id: "example", 
-        name: "Search Example", 
+        name: "Iniciar Pesquisa", 
         val: 1, 
-        color: isDarkMode ? nodeColors.dark.node : nodeColors.light.node,
+        color: isDarkMode ? '#a78bfa' : '#9b87f5',
         group: 1 
       }
     ],
@@ -68,12 +38,11 @@ const Index = () => {
       document.documentElement.classList.remove("dark");
     }
     
-    // Update node colors when theme changes
     setGraphData(prev => ({
       ...prev,
       nodes: prev.nodes.map(node => ({
         ...node,
-        color: newDarkMode ? nodeColors.dark.node : nodeColors.light.node
+        color: newDarkMode ? '#a78bfa' : '#9b87f5'
       }))
     }));
   };
@@ -82,8 +51,8 @@ const Index = () => {
     e.preventDefault();
     if (!searchQuery.trim()) {
       toast({
-        title: "Error",
-        description: "Please enter a search query",
+        title: "Erro",
+        description: "Por favor, digite um termo para pesquisar",
         variant: "destructive",
       });
       return;
@@ -91,8 +60,7 @@ const Index = () => {
 
     setIsLoading(true);
     try {
-      console.log("Attempting to connect to backend at:", BACKEND_URL);
-      console.log("Full URL:", `${BACKEND_URL}/api/search/${encodeURIComponent(searchQuery)}`);
+      console.log("Conectando ao backend em:", BACKEND_URL);
       
       const response = await fetch(`${BACKEND_URL}/api/search/${encodeURIComponent(searchQuery)}`, {
         method: 'GET',
@@ -103,27 +71,26 @@ const Index = () => {
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("Backend error response:", errorText);
-        throw new Error(`HTTP error! status: ${response.status}`);
+        console.error("Erro na resposta do backend:", errorText);
+        throw new Error(`Erro HTTP! status: ${response.status}`);
       }
       
       const data = await response.json();
-      // Add colors to nodes
       data.nodes = data.nodes.map((node: any) => ({
         ...node,
-        color: isDarkMode ? nodeColors.dark.node : nodeColors.light.node
+        color: isDarkMode ? '#a78bfa' : '#9b87f5'
       }));
       setGraphData(data);
       
       toast({
-        title: "Success",
-        description: "Search results updated",
+        title: "Sucesso",
+        description: "Resultados da pesquisa atualizados",
       });
     } catch (error) {
-      console.error("Search error:", error);
+      console.error("Erro na pesquisa:", error);
       toast({
-        title: "Error",
-        description: "Failed to connect to search service. Please ensure the backend server is running and accessible.",
+        title: "Erro",
+        description: "Falha ao conectar ao serviço de pesquisa. Verifique se o servidor backend está rodando e acessível.",
         variant: "destructive",
       });
     } finally {
@@ -133,8 +100,8 @@ const Index = () => {
 
   const handleNodeClick = useCallback((node: any) => {
     toast({
-      title: "Node Selected",
-      description: `Selected: ${node.name}`,
+      title: "Nó Selecionado",
+      description: `Selecionado: ${node.name}`,
     });
   }, [toast]);
 
@@ -144,7 +111,7 @@ const Index = () => {
         <Toggle
           pressed={isDarkMode}
           onPressedChange={toggleDarkMode}
-          aria-label="Toggle dark mode"
+          aria-label="Alternar modo escuro"
           className="p-2 hover:bg-accent"
         >
           {isDarkMode ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
@@ -153,75 +120,27 @@ const Index = () => {
 
       <Card className="max-w-6xl mx-auto p-6 space-y-6 dark:bg-[#221F26] dark:border-gray-700 bg-opacity-90">
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold dark:text-white">Semantic Graph Search</h1>
+          <h1 className="text-3xl font-bold dark:text-white">Pesquisa Semântica em Grafos</h1>
           <p className="text-muted-foreground dark:text-gray-400">
-            Search and visualize semantic relationships between terms
+            Pesquise e visualize relações semânticas entre termos
           </p>
         </div>
         
-        <form onSubmit={handleSearch} className="flex gap-2">
-          <Input
-            type="text"
-            placeholder="Enter your search query..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="flex-1 dark:bg-[#2A2A2A] dark:border-gray-600 dark:text-white"
-          />
-          <Button 
-            type="submit" 
-            disabled={isLoading}
-            className="dark:bg-purple-600 dark:hover:bg-purple-700"
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Searching...
-              </>
-            ) : (
-              'Search'
-            )}
-          </Button>
-        </form>
+        <SearchBar
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          handleSearch={handleSearch}
+          isLoading={isLoading}
+        />
 
-        <div className="h-[600px] border rounded-lg overflow-hidden bg-black/5 dark:bg-[#1A1F2C]/50 dark:border-gray-700">
-          <ForceGraph2D
-            graphData={graphData}
-            nodeLabel="name"
-            nodeColor={(node) => (node as any).color}
-            nodeRelSize={6}
-            linkWidth={1.5}
-            linkColor={() => isDarkMode ? nodeColors.dark.link : nodeColors.light.link}
-            backgroundColor={isDarkMode ? nodeColors.dark.background : nodeColors.light.background}
-            onNodeClick={handleNodeClick}
-            cooldownTicks={100}
-            linkDirectionalParticles={2}
-            linkDirectionalParticleSpeed={0.005}
-            d3VelocityDecay={0.1}
-            nodeCanvasObject={(node, ctx, globalScale) => {
-              const label = (node as any).name;
-              const fontSize = 12/globalScale;
-              ctx.font = `${fontSize}px Sans-Serif`;
-              const textWidth = ctx.measureText(label).width;
-              const bckgDimensions = [textWidth, fontSize].map(n => n + fontSize * 0.2);
-
-              ctx.fillStyle = isDarkMode ? 'rgba(22, 22, 22, 0.8)' : 'rgba(255, 255, 255, 0.8)';
-              ctx.fillRect(
-                (node as any).x - bckgDimensions[0] / 2,
-                (node as any).y - bckgDimensions[1] / 2,
-                bckgDimensions[0],
-                bckgDimensions[1]
-              );
-
-              ctx.textAlign = 'center';
-              ctx.textBaseline = 'middle';
-              ctx.fillStyle = isDarkMode ? nodeColors.dark.node : nodeColors.light.node;
-              ctx.fillText(label, (node as any).x, (node as any).y);
-            }}
-          />
-        </div>
+        <GraphVisualization
+          graphData={graphData}
+          isDarkMode={isDarkMode}
+          handleNodeClick={handleNodeClick}
+        />
 
         <div className="text-sm text-muted-foreground dark:text-gray-400 text-center">
-          Click on nodes to explore relationships. Drag to rearrange the graph.
+          Clique nos nós para explorar relações. Arraste para reorganizar o grafo.
         </div>
       </Card>
     </div>

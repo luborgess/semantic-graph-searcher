@@ -14,13 +14,14 @@ from dotenv import load_dotenv
 nltk.download('punkt')
 nltk.download('stopwords')
 nltk.download('averaged_perceptron_tagger')
+nltk.download('rslp')  # Portuguese stemmer
 
 app = FastAPI()
 
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, replace with your frontend URL
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -67,9 +68,11 @@ class Neo4jConnection:
             """, source=rel["source"], target=rel["target"], weight=rel["weight"])
 
 def scrape_duckduckgo(query: str, max_results: int = 20) -> List[str]:
-    url = f"https://html.duckduckgo.com/html/?q={query}"
+    # Add 'português' to the query to prioritize Portuguese results
+    url = f"https://html.duckduckgo.com/html/?q={query}+português&kl=br-pt"
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7'
     }
     
     try:
@@ -89,11 +92,17 @@ def scrape_duckduckgo(query: str, max_results: int = 20) -> List[str]:
         
         return results
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error scraping results: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar resultados: {str(e)}")
 
 def extract_keywords(text: str) -> List[str]:
+    # Use Portuguese stopwords
+    stop_words = set(stopwords.words('portuguese'))
+    
+    # Add common Portuguese words to stop words
+    additional_stop_words = {'sobre', 'após', 'ante', 'até', 'com', 'contra', 'desde', 'entre', 'para', 'por', 'sem', 'sob'}
+    stop_words.update(additional_stop_words)
+    
     # Tokenize and remove stopwords
-    stop_words = set(stopwords.words('english'))
     tokens = word_tokenize(text.lower())
     keywords = [word for word in tokens if word.isalnum() and word not in stop_words]
     
@@ -117,7 +126,7 @@ async def search(query: str):
             "id": "1",
             "name": query,
             "val": 2,
-            "color": "#ff6b6b",
+            "color": "#a78bfa",
             "group": 1
         })
         seen_keywords.add(query.lower())
@@ -136,7 +145,7 @@ async def search(query: str):
                         "id": node_id,
                         "name": keyword,
                         "val": 1,
-                        "color": "#4ecdc4",
+                        "color": "#a78bfa",
                         "group": 2
                     })
                     seen_keywords.add(keyword.lower())
